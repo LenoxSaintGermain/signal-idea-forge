@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, ArrowLeft, ArrowRight, Sparkles, Save } from "lucide-react";
+import { Lightbulb, ArrowLeft, ArrowRight, Sparkles, Save, Bot, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAI } from "@/contexts/AIContext";
+import AIConfigModal from "./AIConfigModal";
 
 interface SubmitIdeaFormProps {
   onBack: () => void;
@@ -16,7 +18,9 @@ interface SubmitIdeaFormProps {
 
 const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
   const { toast } = useToast();
+  const { isConfigured, enhanceIdea, generateTags, generateValuation, isLoading } = useAI();
   const [currentStep, setCurrentStep] = useState(1);
+  const [showAIConfig, setShowAIConfig] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     summary: "",
@@ -48,6 +52,89 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
     }));
   };
 
+  const handleAIEnhance = async () => {
+    if (!isConfigured) {
+      setShowAIConfig(true);
+      return;
+    }
+
+    if (!formData.title || !formData.summary) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide at least a title and summary before using AI enhancement",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const enhanced = await enhanceIdea(formData);
+      
+      if (enhanced.enhancedProblem) {
+        setFormData(prev => ({ ...prev, problem: enhanced.enhancedProblem }));
+      }
+      if (enhanced.enhancedSolution) {
+        setFormData(prev => ({ ...prev, solution: enhanced.enhancedSolution }));
+      }
+      if (enhanced.marketOpportunity) {
+        setFormData(prev => ({ ...prev, market: enhanced.marketOpportunity }));
+      }
+      if (enhanced.competitiveAdvantages) {
+        setFormData(prev => ({ ...prev, competition: enhanced.competitiveAdvantages }));
+      }
+      if (enhanced.risks) {
+        setFormData(prev => ({ ...prev, risks: enhanced.risks }));
+      }
+
+      toast({
+        title: "AI Enhancement Complete!",
+        description: "Your idea has been enhanced with AI-generated insights",
+      });
+    } catch (error) {
+      toast({
+        title: "AI Enhancement Failed",
+        description: "Please check your AI configuration and try again",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleGenerateTags = async () => {
+    if (!isConfigured) {
+      setShowAIConfig(true);
+      return;
+    }
+
+    const content = `${formData.title} ${formData.summary} ${formData.problem} ${formData.solution}`;
+    if (!content.trim()) {
+      toast({
+        title: "Missing Content",
+        description: "Please add some content before generating tags",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const suggestedTags = await generateTags(content);
+      setFormData(prev => ({ 
+        ...prev, 
+        tags: [...new Set([...prev.tags, ...suggestedTags.slice(0, 5)])]
+      }));
+      
+      toast({
+        title: "Tags Generated!",
+        description: `Added ${suggestedTags.length} AI-suggested tags`,
+      });
+    } catch (error) {
+      toast({
+        title: "Tag Generation Failed",
+        description: "Please try again or add tags manually",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
@@ -67,19 +154,27 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
     });
   };
 
-  const handleSubmit = () => {
-    toast({
-      title: "Idea submitted!",
-      description: "+15 Signal Points earned for submitting an idea",
-    });
+  const handleSubmit = async () => {
+    if (isConfigured && formData.title && formData.summary) {
+      try {
+        const valuation = await generateValuation(formData);
+        toast({
+          title: "Idea submitted!",
+          description: `+15 Signal Points earned! AI estimated valuation: $${valuation.toLocaleString()}`,
+        });
+      } catch (error) {
+        toast({
+          title: "Idea submitted!",
+          description: "+15 Signal Points earned for submitting an idea",
+        });
+      }
+    } else {
+      toast({
+        title: "Idea submitted!",
+        description: "+15 Signal Points earned for submitting an idea",
+      });
+    }
     onBack();
-  };
-
-  const handleAIAssist = () => {
-    toast({
-      title: "AI assistance coming soon!",
-      description: "AI-powered content generation will help complete your idea",
-    });
   };
 
   return (
@@ -92,8 +187,24 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
             Back to Explore
           </Button>
           
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Submit Your Idea</h1>
-          <p className="text-gray-600">Share your brilliant idea with the Signal Vault community</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Submit Your Idea</h1>
+              <p className="text-gray-600">Share your brilliant idea with the Signal Vault community</p>
+            </div>
+            
+            {/* AI Status */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={isConfigured ? "outline" : "default"}
+                size="sm"
+                onClick={() => setShowAIConfig(true)}
+              >
+                <Bot className="h-4 w-4 mr-2" />
+                {isConfigured ? "AI Ready" : "Setup AI"}
+              </Button>
+            </div>
+          </div>
           
           {/* Progress Bar */}
           <div className="mt-6">
@@ -166,7 +277,22 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
                 </div>
 
                 <div>
-                  <Label>Tags</Label>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label>Tags</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateTags}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      AI Generate
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {availableTags.map((tag) => (
                       <Badge
@@ -298,9 +424,18 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
 
             {/* AI Assist Button */}
             <div className="border-t pt-4">
-              <Button variant="outline" onClick={handleAIAssist} className="w-full">
-                <Sparkles className="h-4 w-4 mr-2" />
-                AI Assist (Coming Soon)
+              <Button 
+                variant="outline" 
+                onClick={handleAIEnhance} 
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                {isConfigured ? "AI Enhance Idea" : "Setup AI Assistant"}
               </Button>
             </div>
 
@@ -336,6 +471,11 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
           </CardContent>
         </Card>
       </div>
+
+      <AIConfigModal
+        isOpen={showAIConfig}
+        onClose={() => setShowAIConfig(false)}
+      />
     </div>
   );
 };
