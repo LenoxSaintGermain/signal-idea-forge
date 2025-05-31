@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUp, ArrowDown, Comment } from "lucide-react";
+import { ArrowUp, ArrowDown, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Idea {
@@ -113,7 +113,7 @@ const IdeaCard = ({ idea, onVote, hasVoted }: IdeaCardProps) => {
             </div>
             
             <div className="flex items-center space-x-1 text-gray-500">
-              <Comment className="h-4 w-4" />
+              <MessageCircle className="h-4 w-4" />
               <span className="text-sm">{idea.commentCount}</span>
             </div>
           </div>
