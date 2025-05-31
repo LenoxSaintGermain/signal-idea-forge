@@ -12,6 +12,33 @@ interface AIResponse {
   suggestions?: string[];
 }
 
+// Helper function to extract JSON from markdown code blocks
+const extractJsonFromResponse = (response: string): any => {
+  console.log('Raw AI response:', response);
+  
+  // Try to find JSON in markdown code blocks
+  const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[1]);
+      console.log('Parsed JSON from markdown:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('Failed to parse JSON from markdown:', error);
+    }
+  }
+  
+  // Try to parse the entire response as JSON
+  try {
+    const parsed = JSON.parse(response);
+    console.log('Parsed entire response as JSON:', parsed);
+    return parsed;
+  } catch (error) {
+    console.log('Response is not valid JSON, returning as text');
+    return { enhancedContent: response };
+  }
+};
+
 class ClaudeProvider implements AIProvider {
   private apiKey: string;
 
@@ -30,13 +57,17 @@ class ClaudeProvider implements AIProvider {
         },
         body: JSON.stringify({
           model: 'claude-3-sonnet-20240229',
-          max_tokens: 1000,
+          max_tokens: 1500,
           messages: [{
             role: 'user',
             content: `${context ? `Context: ${JSON.stringify(context)}\n\n` : ''}${prompt}`
           }]
         })
       });
+
+      if (!response.ok) {
+        throw new Error(`Claude API error: ${response.status}`);
+      }
 
       const data = await response.json();
       return data.content[0].text;
@@ -47,64 +78,54 @@ class ClaudeProvider implements AIProvider {
   }
 
   async enhanceIdea(ideaData: any): Promise<any> {
-    const prompt = `Enhance this business idea with detailed analysis:
-    
+    const prompt = `Enhance this business idea with detailed analysis. Respond with valid JSON only, no markdown formatting:
+
 Title: ${ideaData.title}
 Summary: ${ideaData.summary}
-Problem: ${ideaData.problem}
-Solution: ${ideaData.solution}
+Problem: ${ideaData.problem || ''}
+Solution: ${ideaData.solution || ''}
 
-Please provide:
-1. Enhanced problem statement
-2. Improved solution description
-3. Market opportunity analysis
-4. Competitive advantages
-5. Potential risks and mitigation strategies
-
-Format as JSON with keys: enhancedProblem, enhancedSolution, marketOpportunity, competitiveAdvantages, risks`;
+Provide a JSON response with these exact keys:
+{
+  "enhancedProblem": "detailed problem statement",
+  "enhancedSolution": "improved solution description", 
+  "marketOpportunity": "market analysis and opportunity",
+  "competitiveAdvantages": "key competitive advantages",
+  "risks": "potential risks and mitigation strategies"
+}`;
 
     const response = await this.generateContent(prompt);
-    try {
-      return JSON.parse(response);
-    } catch {
-      return { enhancedContent: response };
-    }
+    return extractJsonFromResponse(response);
   }
 
   async generateValuation(ideaData: any): Promise<number> {
-    const prompt = `Estimate the potential valuation for this business idea based on market size, execution complexity, and competitive landscape:
+    const prompt = `Estimate the potential valuation for this business idea. Consider market size, scalability, competition, and execution difficulty.
 
 Title: ${ideaData.title}
 Summary: ${ideaData.summary}
-Category: ${ideaData.category}
-Market: ${ideaData.market}
-Business Model: ${ideaData.businessModel}
+Category: ${ideaData.category || ''}
+Market: ${ideaData.market || ''}
 
-Consider factors like:
-- Total Addressable Market (TAM)
-- Scalability potential
-- Execution difficulty
-- Competition level
-- Revenue model viability
-
-Provide only a number representing the estimated valuation in USD (no currency symbols or formatting).`;
+Respond with only a number representing the estimated valuation in USD (no currency symbols, commas, or text).`;
 
     const response = await this.generateContent(prompt);
     const valuation = parseInt(response.replace(/[^\d]/g, ''));
-    return valuation || 500000; // fallback
+    console.log('Generated valuation:', valuation);
+    return valuation || 500000;
   }
 
   async generateTags(content: string): Promise<string[]> {
-    const prompt = `Based on this business idea content, suggest 5-8 relevant tags:
+    const prompt = `Based on this content, suggest 5-8 relevant tags from this list:
+AI, SaaS, FinTech, HealthTech, EdTech, LegalTech, ClimaTech, Productivity, B2B, B2C, Marketplace, Blockchain, Mobile, Web, Social, Enterprise, Consumer, Hardware, Software, Data, Analytics, Security, IoT, AR/VR
 
-${content}
+Content: ${content}
 
-Available tag options: AI, SaaS, FinTech, HealthTech, EdTech, LegalTech, ClimaTech, Productivity, B2B, B2C, Marketplace, Blockchain, Mobile, Web, Social, Enterprise, Consumer, Hardware, Software, Data, Analytics, Security, IoT, AR/VR
-
-Return only a comma-separated list of tags.`;
+Respond with only comma-separated tags, no other text.`;
 
     const response = await this.generateContent(prompt);
-    return response.split(',').map(tag => tag.trim()).slice(0, 8);
+    const tags = response.split(',').map(tag => tag.trim()).slice(0, 8);
+    console.log('Generated tags:', tags);
+    return tags;
   }
 }
 
@@ -132,10 +153,14 @@ class GeminiProvider implements AIProvider {
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 1000,
+            maxOutputTokens: 1500,
           }
         })
       });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
 
       const data = await response.json();
       return data.candidates[0].content.parts[0].text;
@@ -146,64 +171,54 @@ class GeminiProvider implements AIProvider {
   }
 
   async enhanceIdea(ideaData: any): Promise<any> {
-    const prompt = `Enhance this business idea with detailed analysis:
-    
+    const prompt = `Enhance this business idea with detailed analysis. Respond with valid JSON only, no markdown formatting:
+
 Title: ${ideaData.title}
 Summary: ${ideaData.summary}
-Problem: ${ideaData.problem}
-Solution: ${ideaData.solution}
+Problem: ${ideaData.problem || ''}
+Solution: ${ideaData.solution || ''}
 
-Please provide:
-1. Enhanced problem statement
-2. Improved solution description
-3. Market opportunity analysis
-4. Competitive advantages
-5. Potential risks and mitigation strategies
-
-Format as JSON with keys: enhancedProblem, enhancedSolution, marketOpportunity, competitiveAdvantages, risks`;
+Provide a JSON response with these exact keys:
+{
+  "enhancedProblem": "detailed problem statement",
+  "enhancedSolution": "improved solution description", 
+  "marketOpportunity": "market analysis and opportunity",
+  "competitiveAdvantages": "key competitive advantages",
+  "risks": "potential risks and mitigation strategies"
+}`;
 
     const response = await this.generateContent(prompt);
-    try {
-      return JSON.parse(response);
-    } catch {
-      return { enhancedContent: response };
-    }
+    return extractJsonFromResponse(response);
   }
 
   async generateValuation(ideaData: any): Promise<number> {
-    const prompt = `Estimate the potential valuation for this business idea based on market size, execution complexity, and competitive landscape:
+    const prompt = `Estimate the potential valuation for this business idea. Consider market size, scalability, competition, and execution difficulty.
 
 Title: ${ideaData.title}
 Summary: ${ideaData.summary}
-Category: ${ideaData.category}
-Market: ${ideaData.market}
-Business Model: ${ideaData.businessModel}
+Category: ${ideaData.category || ''}
+Market: ${ideaData.market || ''}
 
-Consider factors like:
-- Total Addressable Market (TAM)
-- Scalability potential
-- Execution difficulty
-- Competition level
-- Revenue model viability
-
-Provide only a number representing the estimated valuation in USD (no currency symbols or formatting).`;
+Respond with only a number representing the estimated valuation in USD (no currency symbols, commas, or text).`;
 
     const response = await this.generateContent(prompt);
     const valuation = parseInt(response.replace(/[^\d]/g, ''));
-    return valuation || 500000; // fallback
+    console.log('Generated valuation:', valuation);
+    return valuation || 500000;
   }
 
   async generateTags(content: string): Promise<string[]> {
-    const prompt = `Based on this business idea content, suggest 5-8 relevant tags:
+    const prompt = `Based on this content, suggest 5-8 relevant tags from this list:
+AI, SaaS, FinTech, HealthTech, EdTech, LegalTech, ClimaTech, Productivity, B2B, B2C, Marketplace, Blockchain, Mobile, Web, Social, Enterprise, Consumer, Hardware, Software, Data, Analytics, Security, IoT, AR/VR
 
-${content}
+Content: ${content}
 
-Available tag options: AI, SaaS, FinTech, HealthTech, EdTech, LegalTech, ClimaTech, Productivity, B2B, B2C, Marketplace, Blockchain, Mobile, Web, Social, Enterprise, Consumer, Hardware, Software, Data, Analytics, Security, IoT, AR/VR
-
-Return only a comma-separated list of tags.`;
+Respond with only comma-separated tags, no other text.`;
 
     const response = await this.generateContent(prompt);
-    return response.split(',').map(tag => tag.trim()).slice(0, 8);
+    const tags = response.split(',').map(tag => tag.trim()).slice(0, 8);
+    console.log('Generated tags:', tags);
+    return tags;
   }
 }
 
@@ -225,8 +240,10 @@ export class AIService {
 
   async enhanceIdea(ideaData: any): Promise<any> {
     try {
+      console.log('Enhancing idea with primary provider:', ideaData);
       return await this.provider.enhanceIdea(ideaData);
     } catch (error) {
+      console.error('Primary provider failed:', error);
       if (this.fallbackProvider) {
         console.log('Trying fallback provider...');
         return await this.fallbackProvider.enhanceIdea(ideaData);
