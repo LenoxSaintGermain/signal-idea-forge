@@ -42,6 +42,11 @@ const IdeaCard = ({ idea, onVote, hasVoted }: IdeaCardProps) => {
     }
   };
 
+  const handleVoteClick = (e: React.MouseEvent, voteType: 'up' | 'down') => {
+    e.stopPropagation(); // Prevent card click when voting
+    onVote(idea.id, voteType);
+  };
+
   return (
     <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 bg-white/80 backdrop-blur-sm">
       <CardHeader className="pb-3">
@@ -91,7 +96,7 @@ const IdeaCard = ({ idea, onVote, hasVoted }: IdeaCardProps) => {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => onVote(idea.id, 'up')}
+                onClick={(e) => handleVoteClick(e, 'up')}
                 disabled={hasVoted}
                 className={cn(
                   "p-1 h-8 w-8",
@@ -104,7 +109,7 @@ const IdeaCard = ({ idea, onVote, hasVoted }: IdeaCardProps) => {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => onVote(idea.id, 'down')}
+                onClick={(e) => handleVoteClick(e, 'down')}
                 disabled={hasVoted}
                 className="p-1 h-8 w-8 hover:text-red-600 hover:bg-red-50"
               >
@@ -118,9 +123,9 @@ const IdeaCard = ({ idea, onVote, hasVoted }: IdeaCardProps) => {
             </div>
           </div>
           
-          <Button size="sm" variant="outline" className="text-xs">
-            View Details
-          </Button>
+          <div className="text-xs text-gray-500 hover:text-blue-600 transition-colors">
+            Click to view details →
+          </div>
         </div>
       </CardContent>
     </Card>

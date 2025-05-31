@@ -1,20 +1,24 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowUp, ArrowDown, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import Navigation from "@/components/Navigation";
 import Dashboard from "@/components/Dashboard";
 import ROISimulator from "@/components/ROISimulator";
 import IdeaCard from "@/components/IdeaCard";
+import IdeaDetailModal from "@/components/IdeaDetailModal";
+import SubmitIdeaForm from "@/components/SubmitIdeaForm";
+import FilterBar from "@/components/FilterBar";
 
 const Index = () => {
   const { toast } = useToast();
   const [activeView, setActiveView] = useState("explore");
   const [userPoints, setUserPoints] = useState(412);
   const [votedIdeas, setVotedIdeas] = useState(new Set());
+  const [selectedIdea, setSelectedIdea] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [sortBy, setSortBy] = useState("popular");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const mockIdeas = [
     {
@@ -73,62 +77,46 @@ const Index = () => {
     console.log(`Voted ${voteType} on idea ${ideaId}`);
   };
 
+  const handleIdeaClick = (idea: any) => {
+    setSelectedIdea(idea);
+    setIsDetailModalOpen(true);
+  };
+
+  // Filter and sort ideas based on current filters
+  const filteredIdeas = mockIdeas.filter(idea => {
+    if (statusFilter !== "all" && idea.status !== statusFilter) return false;
+    // Add more filtering logic based on categoryFilter
+    return true;
+  });
+
+  // Render different views
   if (activeView === "dashboard") {
-    return <Dashboard userPoints={userPoints} ideas={mockIdeas} />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={userPoints} />
+        <Dashboard userPoints={userPoints} ideas={mockIdeas} />
+      </div>
+    );
   }
 
   if (activeView === "simulator") {
-    return <ROISimulator />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={userPoints} />
+        <ROISimulator />
+      </div>
+    );
+  }
+
+  if (activeView === "submit") {
+    return (
+      <SubmitIdeaForm onBack={() => setActiveView("explore")} />
+    );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Signal Vault
-              </div>
-              <Badge variant="secondary" className="text-xs">MVP</Badge>
-            </div>
-            
-            <nav className="flex items-center space-x-6">
-              <Button
-                variant={activeView === "explore" ? "default" : "ghost"}
-                onClick={() => setActiveView("explore")}
-                className="text-sm"
-              >
-                Explore
-              </Button>
-              <Button
-                variant={activeView === "dashboard" ? "default" : "ghost"}
-                onClick={() => setActiveView("dashboard")}
-                className="text-sm"
-              >
-                Dashboard
-              </Button>
-              <Button
-                variant={activeView === "simulator" ? "default" : "ghost"}
-                onClick={() => setActiveView("simulator")}
-                className="text-sm"
-              >
-                ROI Simulator
-              </Button>
-            </nav>
-
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                <span className="font-semibold text-blue-600">{userPoints}</span> Signal Points
-              </div>
-              <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600">
-                Submit Idea
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={userPoints} />
 
       {/* Hero Section */}
       <section className="py-20 px-4 text-center">
@@ -141,12 +129,18 @@ const Index = () => {
             Contribute, earn Signal Points, and simulate your potential returns.
           </p>
           <div className="flex justify-center space-x-4">
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8">
+            <button 
+              onClick={() => document.getElementById('ideas-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+            >
               Start Exploring
-            </Button>
-            <Button size="lg" variant="outline">
+            </button>
+            <button 
+              onClick={() => setActiveView("submit")}
+              className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:shadow-lg transition-all"
+            >
               Submit Your Idea
-            </Button>
+            </button>
           </div>
         </div>
       </section>
@@ -176,25 +170,26 @@ const Index = () => {
       </section>
 
       {/* Ideas Feed */}
-      <section className="py-16 px-4">
+      <section id="ideas-section" className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Featured Ideas</h2>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm">Popular</Button>
-              <Button variant="outline" size="sm">Recent</Button>
-              <Button variant="outline" size="sm">Hot</Button>
-            </div>
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6">Featured Ideas</h2>
+            <FilterBar 
+              onSortChange={setSortBy}
+              onCategoryChange={setCategoryFilter}
+              onStatusChange={setStatusFilter}
+            />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockIdeas.map((idea) => (
-              <IdeaCard
-                key={idea.id}
-                idea={idea}
-                onVote={handleVote}
-                hasVoted={votedIdeas.has(idea.id)}
-              />
+            {filteredIdeas.map((idea) => (
+              <div key={idea.id} onClick={() => handleIdeaClick(idea)} className="cursor-pointer">
+                <IdeaCard
+                  idea={idea}
+                  onVote={handleVote}
+                  hasVoted={votedIdeas.has(idea.id)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -207,11 +202,23 @@ const Index = () => {
           <p className="text-xl mb-8 opacity-90">
             Join Signal Vault and turn your intellectual property into a scalable revenue stream.
           </p>
-          <Button size="lg" variant="secondary" className="text-blue-600 font-semibold px-8">
+          <button 
+            onClick={() => setActiveView("submit")}
+            className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:shadow-lg transition-all"
+          >
             Get Started Today
-          </Button>
+          </button>
         </div>
       </section>
+
+      {/* Idea Detail Modal */}
+      <IdeaDetailModal
+        idea={selectedIdea}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        onVote={handleVote}
+        hasVoted={selectedIdea ? votedIdeas.has(selectedIdea.id) : false}
+      />
     </div>
   );
 };
