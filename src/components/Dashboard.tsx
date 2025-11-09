@@ -1,11 +1,11 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUp, TrendingUp, DollarSign, Lightbulb, Target } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TrendingUp, DollarSign, Lightbulb, Target, Activity } from "lucide-react";
 import { useUserActivity } from "@/hooks/useUserActivity";
 import { useAuth } from "@/hooks/useAuth";
-import { formatDistanceToNow } from "date-fns";
+import EmptyState from "./EmptyState";
 
 interface DashboardProps {
   userPoints: number;
@@ -14,7 +14,7 @@ interface DashboardProps {
 
 const Dashboard = ({ userPoints, ideas }: DashboardProps) => {
   const { user } = useAuth();
-  const { activities, loading: activitiesLoading } = useUserActivity(user?.id);
+  const { activities, loading } = useUserActivity(user?.id);
 
   const totalEquity = ideas.reduce((sum, idea) => sum + (idea.userEquity || 0), 0);
   const estimatedValue = ideas.reduce((sum, idea) => 
@@ -108,24 +108,49 @@ const Dashboard = ({ userPoints, ideas }: DashboardProps) => {
           {/* Recent Activity */}
           <Card className="lg:col-span-2 bg-white/80 backdrop-blur-sm border-0">
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+                <Activity className="h-4 w-4 mr-2" />
+                Recent Activity
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {activitiesLoading ? (
-                <div className="text-center text-gray-500 py-4">Loading...</div>
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex items-start space-x-3 pb-3 border-b">
+                      <Skeleton className="h-5 w-16 mt-1" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                      <Skeleton className="h-4 w-8" />
+                    </div>
+                  ))}
+                </div>
               ) : activities.length === 0 ? (
-                <div className="text-center text-gray-500 py-4">No recent activity</div>
+                <EmptyState
+                  icon={<Activity className="h-8 w-8 text-gray-400" />}
+                  title="No activity yet"
+                  description="Start voting and commenting to see your activity here"
+                  className="py-8"
+                />
               ) : (
                 <div className="space-y-4">
                   {activities.map((activity) => (
-                    <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <div className="font-medium text-sm">{getActionLabel(activity.type)}</div>
-                        <div className="text-sm text-gray-600">{activity.ideaTitle}</div>
+                    <div key={activity.id} className="flex items-start space-x-3 pb-3 border-b last:border-0">
+                      <div className="mt-1">
+                        <Badge variant="secondary" className="text-xs">
+                          {getActionLabel(activity.type)}
+                        </Badge>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-green-600">+{activity.points} pts</div>
-                        <div className="text-xs text-gray-500">{formatDistanceToNow(activity.timestamp, { addSuffix: true })}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 truncate">{activity.ideaTitle}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(activity.timestamp).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-sm font-medium text-green-600">
+                        +{activity.points}
                       </div>
                     </div>
                   ))}
@@ -137,26 +162,48 @@ const Dashboard = ({ userPoints, ideas }: DashboardProps) => {
           {/* Your Ideas Portfolio */}
           <Card className="bg-white/80 backdrop-blur-sm border-0">
             <CardHeader>
-              <CardTitle>Your Portfolio</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
+                <Lightbulb className="h-4 w-4 mr-2" />
+                Your Portfolio
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {ideas.map((idea, index) => (
-                  <div key={index} className="p-3 border rounded-lg">
-                    <div className="font-medium text-sm mb-1">{idea.title}</div>
-                    <div className="flex justify-between items-center text-xs">
-                      <Badge variant="secondary">{(idea.userEquity * 100).toFixed(2)}% equity</Badge>
-                      <span className="text-green-600 font-semibold">
-                        {formatCurrency(idea.valuationEstimate * idea.userEquity)}
-                      </span>
+              {ideas.length === 0 ? (
+                <EmptyState
+                  icon={<Lightbulb className="h-8 w-8 text-gray-400" />}
+                  title="No ideas yet"
+                  description="Submit your first idea to start building your portfolio"
+                  className="py-8"
+                />
+              ) : (
+                <div className="space-y-4">
+                  {ideas.slice(0, 5).map((idea) => (
+                    <div key={idea.id} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-sm text-gray-900">{idea.title}</h4>
+                        <Badge variant="secondary" className="text-xs">{idea.status}</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-500">Your Equity:</span>
+                          <span className="ml-1 font-medium text-blue-600">
+                            {((idea.userEquity || 0) * 100).toFixed(2)}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Est. Value:</span>
+                          <span className="ml-1 font-medium text-green-600">
+                            {formatCurrency(idea.valuationEstimate * (idea.userEquity || 0))}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              
-              <Button className="w-full mt-4" variant="outline">
-                View All Ideas
-              </Button>
+                  ))}
+                  <Button variant="outline" className="w-full">
+                    View All Ideas
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

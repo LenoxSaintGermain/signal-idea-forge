@@ -8,9 +8,10 @@ interface FilterBarProps {
   onSortChange: (sort: string) => void;
   onCategoryChange: (category: string) => void;
   onStatusChange: (status: string) => void;
+  onValuationChange: (valuation: string) => void;
 }
 
-const FilterBar = ({ onSortChange, onCategoryChange, onStatusChange }: FilterBarProps) => {
+const FilterBar = ({ onSortChange, onCategoryChange, onStatusChange, onValuationChange }: FilterBarProps) => {
   const [activeSort, setActiveSort] = useState("popular");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -84,7 +85,7 @@ const FilterBar = ({ onSortChange, onCategoryChange, onStatusChange }: FilterBar
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Valuation Range</label>
-            <Select>
+            <Select onValueChange={onValuationChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Any Range" />
               </SelectTrigger>

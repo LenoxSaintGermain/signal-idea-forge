@@ -99,6 +99,7 @@ export interface FilterBarProps {
   onSortChange: (sort: string) => void;
   onCategoryChange: (category: string) => void;
   onStatusChange: (status: string) => void;
+  onValuationChange: (valuation: string) => void;
 }
 
 export interface NavigationProps {
