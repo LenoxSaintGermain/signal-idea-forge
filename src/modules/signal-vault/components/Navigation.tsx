@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Menu, X, Search } from "lucide-react";
+import { Menu, X, Search, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NavigationProps } from "../types";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navigation = ({ activeView, setActiveView, userPoints }: NavigationProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { signOut } = useAuth();
 
   const navItems = [
     { id: "explore", label: "Explore" },
@@ -60,8 +62,14 @@ const Navigation = ({ activeView, setActiveView, userPoints }: NavigationProps) 
             <div className="text-sm text-gray-600">
               <span className="font-semibold text-blue-600">{userPoints}</span> Signal Points
             </div>
-            <Button size="sm" className="hidden md:block bg-gradient-to-r from-blue-600 to-indigo-600">
-              Login
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="hidden md:flex items-center gap-2"
+              onClick={signOut}
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
             </Button>
             
             {/* Mobile Menu Button */}
@@ -106,8 +114,13 @@ const Navigation = ({ activeView, setActiveView, userPoints }: NavigationProps) 
                 </Button>
               ))}
               
-              <Button className="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600">
-                Login
+              <Button 
+                onClick={signOut}
+                className="w-full mt-2 flex items-center justify-center gap-2"
+                variant="outline"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
               </Button>
             </div>
           </div>
