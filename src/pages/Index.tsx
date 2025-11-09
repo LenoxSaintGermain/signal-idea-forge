@@ -1,13 +1,17 @@
 
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import Navigation from "@/components/Navigation";
-import Dashboard from "@/components/Dashboard";
-import ROISimulator from "@/components/ROISimulator";
-import IdeaCard from "@/components/IdeaCard";
-import IdeaDetailModal from "@/components/IdeaDetailModal";
-import SubmitIdeaForm from "@/components/SubmitIdeaForm";
-import FilterBar from "@/components/FilterBar";
+// Using modularized Signal Vault components
+import {
+  Navigation,
+  Dashboard,
+  ROISimulator,
+  IdeaCard,
+  IdeaDetailModal,
+  SubmitIdeaForm,
+  FilterBar,
+  type Idea
+} from "@/modules/signal-vault";
 
 const Index = () => {
   const { toast } = useToast();
@@ -20,7 +24,7 @@ const Index = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const mockIdeas = [
+  const mockIdeas: Idea[] = [
     {
       id: "idea-001",
       title: "AI Agent for HOA Disputes",

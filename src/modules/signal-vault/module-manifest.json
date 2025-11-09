@@ -1,0 +1,68 @@
+{
+  "name": "signal-vault-module",
+  "version": "1.0.0",
+  "description": "Portable Signal Vault module for idea marketplace and validation platform",
+  "dependencies": {
+    "required": [
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-label",
+      "@radix-ui/react-select",
+      "@radix-ui/react-toast",
+      "lucide-react",
+      "react",
+      "react-dom"
+    ],
+    "ui-components": [
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/components/ui/badge",
+      "@/components/ui/input",
+      "@/components/ui/label",
+      "@/components/ui/select",
+      "@/components/ui/dialog",
+      "@/components/ui/textarea",
+      "@/components/ui/progress"
+    ],
+    "hooks": [
+      "@/hooks/use-toast"
+    ],
+    "utilities": [
+      "@/lib/utils"
+    ]
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./components": "./components/index.ts",
+    "./contexts": "./contexts/index.ts",
+    "./services": "./services/index.ts",
+    "./types": "./types/index.ts",
+    "./utils": "./utils/index.ts",
+    "./hooks": "./hooks/index.ts"
+  },
+  "module-info": {
+    "type": "feature-module",
+    "framework": "react",
+    "styling": "tailwindcss",
+    "ui-library": "shadcn-ui",
+    "state-management": "react-context",
+    "backend-ready": true,
+    "standalone-capable": true
+  },
+  "integration": {
+    "requires-auth": false,
+    "requires-database": false,
+    "can-share-auth": true,
+    "can-share-database": true,
+    "personas-supported": [
+      "recruiter",
+      "c-suite",
+      "investor",
+      "entrepreneur",
+      "default"
+    ]
+  }
+}
