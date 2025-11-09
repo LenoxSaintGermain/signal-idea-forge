@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUp, TrendingUp, DollarSign, Lightbulb, Target } from "lucide-react";
+import { useUserActivity } from "@/hooks/useUserActivity";
+import { useAuth } from "@/hooks/useAuth";
+import { formatDistanceToNow } from "date-fns";
 
 interface DashboardProps {
   userPoints: number;
@@ -10,6 +13,9 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ userPoints, ideas }: DashboardProps) => {
+  const { user } = useAuth();
+  const { activities, loading: activitiesLoading } = useUserActivity(user?.id);
+
   const totalEquity = ideas.reduce((sum, idea) => sum + (idea.userEquity || 0), 0);
   const estimatedValue = ideas.reduce((sum, idea) => 
     sum + (idea.valuationEstimate * (idea.userEquity || 0)), 0
@@ -25,13 +31,15 @@ const Dashboard = ({ userPoints, ideas }: DashboardProps) => {
     }).format(value);
   };
 
-  const recentActivity = [
-    { action: "Upvoted", idea: "AI Agent for HOA Disputes", points: 1, time: "2h ago" },
-    { action: "Commented", idea: "Micro-Dosing App", points: 2, time: "5h ago" },
-    { action: "Detailed Feedback", idea: "Climate Credit Marketplace", points: 5, time: "1d ago" },
-    { action: "Enhancement Accepted", idea: "AI Agent for HOA Disputes", points: 10, time: "2d ago" }
-  ];
-
+  const getActionLabel = (type: string) => {
+    switch (type) {
+      case 'vote': return 'Upvoted';
+      case 'comment': return 'Commented';
+      case 'enhancement': return 'Enhanced';
+      case 'submission': return 'Submitted';
+      default: return type;
+    }
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -103,20 +111,26 @@ const Dashboard = ({ userPoints, ideas }: DashboardProps) => {
               <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium text-sm">{activity.action}</div>
-                      <div className="text-sm text-gray-600">{activity.idea}</div>
+              {activitiesLoading ? (
+                <div className="text-center text-gray-500 py-4">Loading...</div>
+              ) : activities.length === 0 ? (
+                <div className="text-center text-gray-500 py-4">No recent activity</div>
+              ) : (
+                <div className="space-y-4">
+                  {activities.map((activity) => (
+                    <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <div className="font-medium text-sm">{getActionLabel(activity.type)}</div>
+                        <div className="text-sm text-gray-600">{activity.ideaTitle}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-green-600">+{activity.points} pts</div>
+                        <div className="text-xs text-gray-500">{formatDistanceToNow(activity.timestamp, { addSuffix: true })}</div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-green-600">+{activity.points} pts</div>
-                      <div className="text-xs text-gray-500">{activity.time}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

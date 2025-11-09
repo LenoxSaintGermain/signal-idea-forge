@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Lightbulb, ArrowLeft, ArrowRight, Sparkles, Save, Bot, Loader2, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAI } from "@/contexts/AIContext";
-import AIConfigModal from "./AIConfigModal";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SubmitIdeaFormProps {
   onBack: () => void;
@@ -17,10 +16,7 @@ interface SubmitIdeaFormProps {
 
 const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
   const { toast } = useToast();
-  const { isConfigured, enhanceIdea, generateTags, generateValuation, isLoading } = useAI();
   const [currentStep, setCurrentStep] = useState(1);
-  const [showAIConfig, setShowAIConfig] = useState(false);
-  const [enhancedFields, setEnhancedFields] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     summary: "",
@@ -41,8 +37,6 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Remove field from enhanced list if user manually edits
-    setEnhancedFields(prev => prev.filter(f => f !== field));
   };
 
   const handleTagToggle = (tag: string) => {
@@ -52,149 +46,6 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
         ? prev.tags.filter(t => t !== tag)
         : [...prev.tags, tag]
     }));
-  };
-
-  const handleAIEnhance = async () => {
-    if (!isConfigured) {
-      setShowAIConfig(true);
-      return;
-    }
-
-    if (!formData.title || !formData.summary) {
-      toast({
-        title: "Missing Information",
-        description: "Please provide at least a title and summary before using AI enhancement",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      console.log('Starting AI enhancement with data:', formData);
-      const enhanced = await enhanceIdea(formData);
-      console.log('AI enhancement result:', enhanced);
-      
-      const updatedFields: string[] = [];
-      
-      // Map AI response to form fields with proper field mapping
-      if (enhanced.enhancedProblem && enhanced.enhancedProblem.trim()) {
-        setFormData(prev => ({ ...prev, problem: enhanced.enhancedProblem }));
-        updatedFields.push('problem');
-      }
-      
-      if (enhanced.enhancedSolution && enhanced.enhancedSolution.trim()) {
-        setFormData(prev => ({ ...prev, solution: enhanced.enhancedSolution }));
-        updatedFields.push('solution');
-      }
-      
-      if (enhanced.marketOpportunity && enhanced.marketOpportunity.trim()) {
-        setFormData(prev => ({ ...prev, market: enhanced.marketOpportunity }));
-        updatedFields.push('market');
-      }
-      
-      if (enhanced.competitiveAdvantages && enhanced.competitiveAdvantages.trim()) {
-        setFormData(prev => ({ ...prev, competition: enhanced.competitiveAdvantages }));
-        updatedFields.push('competition');
-      }
-      
-      if (enhanced.risks && enhanced.risks.trim()) {
-        setFormData(prev => ({ ...prev, risks: enhanced.risks }));
-        updatedFields.push('risks');
-      }
-
-      // Handle fallback content
-      if (enhanced.enhancedContent && updatedFields.length === 0) {
-        setFormData(prev => ({ ...prev, problem: enhanced.enhancedContent }));
-        updatedFields.push('problem');
-      }
-
-      setEnhancedFields(updatedFields);
-      
-      if (updatedFields.length > 0) {
-        toast({
-          title: "AI Enhancement Complete!",
-          description: `Enhanced ${updatedFields.length} field(s): ${updatedFields.join(', ')}`,
-        });
-      } else {
-        toast({
-          title: "Enhancement Received",
-          description: "AI provided feedback but no fields were automatically filled",
-          variant: "default"
-        });
-      }
-    } catch (error) {
-      console.error('AI enhancement error:', error);
-      toast({
-        title: "AI Enhancement Failed",
-        description: "Please check your AI configuration and try again",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleGenerateTags = async () => {
-    if (!isConfigured) {
-      setShowAIConfig(true);
-      return;
-    }
-
-    const content = `${formData.title} ${formData.summary} ${formData.problem} ${formData.solution}`;
-    if (!content.trim()) {
-      toast({
-        title: "Missing Content",
-        description: "Please add some content before generating tags",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      console.log('Generating tags for content:', content);
-      const suggestedTags = await generateTags(content);
-      console.log('Generated tags:', suggestedTags);
-      
-      const newTags = suggestedTags.filter(tag => !formData.tags.includes(tag));
-      if (newTags.length > 0) {
-        setFormData(prev => ({ 
-          ...prev, 
-          tags: [...prev.tags, ...newTags.slice(0, 5)]
-        }));
-        
-        toast({
-          title: "Tags Generated!",
-          description: `Added ${newTags.length} AI-suggested tags`,
-        });
-      } else {
-        toast({
-          title: "No New Tags",
-          description: "All suggested tags were already selected",
-        });
-      }
-    } catch (error) {
-      console.error('Tag generation error:', error);
-      toast({
-        title: "Tag Generation Failed",
-        description: "Please try again or add tags manually",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const renderFieldWithEnhancement = (fieldName: string, children: React.ReactNode) => {
-    const isEnhanced = enhancedFields.includes(fieldName);
-    return (
-      <div className={`relative ${isEnhanced ? 'ring-2 ring-green-200 rounded-md p-2' : ''}`}>
-        {children}
-        {isEnhanced && (
-          <div className="absolute -top-2 -right-2">
-            <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              AI Enhanced
-            </Badge>
-          </div>
-        )}
-      </div>
-    );
   };
 
   const handleNext = () => {
@@ -217,26 +68,43 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
   };
 
   const handleSubmit = async () => {
-    if (isConfigured && formData.title && formData.summary) {
-      try {
-        const valuation = await generateValuation(formData);
-        toast({
-          title: "Idea submitted!",
-          description: `+15 Signal Points earned! AI estimated valuation: $${valuation.toLocaleString()}`,
-        });
-      } catch (error) {
-        toast({
-          title: "Idea submitted!",
-          description: "+15 Signal Points earned for submitting an idea",
-        });
-      }
-    } else {
+    if (!formData.title || !formData.summary) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide at least a title and summary",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-idea', {
+        body: {
+          title: formData.title,
+          summary: formData.summary,
+          problem: formData.problem,
+          solution: formData.solution,
+          market_opportunity: formData.market,
+          business_model: formData.businessModel,
+          tags: formData.tags,
+        }
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Idea submitted!",
-        description: "+15 Signal Points earned for submitting an idea",
+        description: "+15 Signal Points earned!",
+      });
+      onBack();
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast({
+        title: "Submission failed",
+        description: "Please try again",
+        variant: "destructive"
       });
     }
-    onBack();
   };
 
   return (
@@ -253,18 +121,6 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Submit Your Idea</h1>
               <p className="text-gray-600">Share your brilliant idea with the Signal Vault community</p>
-            </div>
-            
-            {/* AI Status */}
-            <div className="flex items-center space-x-2">
-              <Button
-                variant={isConfigured ? "outline" : "default"}
-                size="sm"
-                onClick={() => setShowAIConfig(true)}
-              >
-                <Bot className="h-4 w-4 mr-2" />
-                {isConfigured ? "AI Ready" : "Setup AI"}
-              </Button>
             </div>
           </div>
           
@@ -339,22 +195,7 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <Label>Tags</Label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateTags}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-2" />
-                      )}
-                      AI Generate
-                    </Button>
-                  </div>
+                  <Label>Tags</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {availableTags.map((tag) => (
                       <Badge
@@ -374,31 +215,27 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
             {/* Step 2: Problem & Solution */}
             {currentStep === 2 && (
               <>
-                {renderFieldWithEnhancement('problem', (
-                  <div>
-                    <Label htmlFor="problem">Problem Statement *</Label>
-                    <Textarea
-                      id="problem"
-                      placeholder="What specific problem does this idea solve? Who experiences this problem?"
-                      value={formData.problem}
-                      onChange={(e) => handleInputChange('problem', e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                ))}
+                <div>
+                  <Label htmlFor="problem">Problem Statement *</Label>
+                  <Textarea
+                    id="problem"
+                    placeholder="What specific problem does this idea solve? Who experiences this problem?"
+                    value={formData.problem}
+                    onChange={(e) => handleInputChange('problem', e.target.value)}
+                    rows={4}
+                  />
+                </div>
 
-                {renderFieldWithEnhancement('solution', (
-                  <div>
-                    <Label htmlFor="solution">Solution Overview *</Label>
-                    <Textarea
-                      id="solution"
-                      placeholder="How does your idea solve the problem? What makes it unique?"
-                      value={formData.solution}
-                      onChange={(e) => handleInputChange('solution', e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                ))}
+                <div>
+                  <Label htmlFor="solution">Solution Overview *</Label>
+                  <Textarea
+                    id="solution"
+                    placeholder="How does your idea solve the problem? What makes it unique?"
+                    value={formData.solution}
+                    onChange={(e) => handleInputChange('solution', e.target.value)}
+                    rows={4}
+                  />
+                </div>
 
                 <div>
                   <Label htmlFor="targetAudience">Target Audience</Label>
@@ -415,18 +252,16 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
             {/* Step 3: Market & Business Model */}
             {currentStep === 3 && (
               <>
-                {renderFieldWithEnhancement('market', (
-                  <div>
-                    <Label htmlFor="market">Market Opportunity</Label>
-                    <Textarea
-                      id="market"
-                      placeholder="What's the market size? Who are the competitors? What's the opportunity?"
-                      value={formData.market}
-                      onChange={(e) => handleInputChange('market', e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                ))}
+                <div>
+                  <Label htmlFor="market">Market Opportunity</Label>
+                  <Textarea
+                    id="market"
+                    placeholder="What's the market size? Who are the competitors? What's the opportunity?"
+                    value={formData.market}
+                    onChange={(e) => handleInputChange('market', e.target.value)}
+                    rows={4}
+                  />
+                </div>
 
                 <div>
                   <Label htmlFor="businessModel">Business Model</Label>
@@ -439,18 +274,16 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
                   />
                 </div>
 
-                {renderFieldWithEnhancement('competition', (
-                  <div>
-                    <Label htmlFor="competition">Competition Analysis</Label>
-                    <Textarea
-                      id="competition"
-                      placeholder="Who are the main competitors? What's your competitive advantage?"
-                      value={formData.competition}
-                      onChange={(e) => handleInputChange('competition', e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                ))}
+                <div>
+                  <Label htmlFor="competition">Competition Analysis</Label>
+                  <Textarea
+                    id="competition"
+                    placeholder="Who are the main competitors? What's your competitive advantage?"
+                    value={formData.competition}
+                    onChange={(e) => handleInputChange('competition', e.target.value)}
+                    rows={3}
+                  />
+                </div>
               </>
             )}
 
@@ -468,18 +301,16 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
                   />
                 </div>
 
-                {renderFieldWithEnhancement('risks', (
-                  <div>
-                    <Label htmlFor="risks">Risks & Challenges</Label>
-                    <Textarea
-                      id="risks"
-                      placeholder="What are the main risks? Technical, market, regulatory challenges?"
-                      value={formData.risks}
-                      onChange={(e) => handleInputChange('risks', e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                ))}
+                <div>
+                  <Label htmlFor="risks">Risks & Challenges</Label>
+                  <Textarea
+                    id="risks"
+                    placeholder="What are the main risks? Technical, market, regulatory challenges?"
+                    value={formData.risks}
+                    onChange={(e) => handleInputChange('risks', e.target.value)}
+                    rows={3}
+                  />
+                </div>
 
                 {/* Summary Preview */}
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -493,23 +324,6 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
                 </div>
               </>
             )}
-
-            {/* AI Assist Button */}
-            <div className="border-t pt-4">
-              <Button 
-                variant="outline" 
-                onClick={handleAIEnhance} 
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4 mr-2" />
-                )}
-                {isConfigured ? "AI Enhance Idea" : "Setup AI Assistant"}
-              </Button>
-            </div>
 
             {/* Navigation */}
             <div className="flex justify-between items-center pt-6 border-t">
@@ -543,11 +357,6 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
           </CardContent>
         </Card>
       </div>
-
-      <AIConfigModal
-        isOpen={showAIConfig}
-        onClose={() => setShowAIConfig(false)}
-      />
     </div>
   );
 };

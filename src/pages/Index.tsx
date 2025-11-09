@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIdeas } from "@/hooks/useIdeas";
 import { useSignals } from "@/hooks/useSignals";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useGlobalStats } from "@/hooks/useGlobalStats";
 // Using modularized Signal Vault components
 import {
   Navigation,
@@ -28,6 +29,7 @@ const Index = () => {
   const { ideas, loading: ideasLoading } = useIdeas(sortBy, categoryFilter, statusFilter);
   const { votedIdeas, createSignal } = useSignals(user?.id);
   const { profile } = useUserProfile(user?.id);
+  const { stats, loading: statsLoading } = useGlobalStats();
 
   const handleVote = async (ideaId: string, voteType: 'up' | 'down') => {
     if (votedIdeas.has(ideaId)) {
@@ -118,19 +120,27 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <div>
-              <div className="text-2xl font-bold text-blue-600">247</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {statsLoading ? '...' : stats.totalIdeas}
+              </div>
               <div className="text-sm text-gray-600">Active Ideas</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-indigo-600">1.2K</div>
+              <div className="text-2xl font-bold text-indigo-600">
+                {statsLoading ? '...' : stats.activeUsers}
+              </div>
               <div className="text-sm text-gray-600">Community Members</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-purple-600">$12M</div>
+              <div className="text-2xl font-bold text-purple-600">
+                {statsLoading ? '...' : `$${(stats.totalValuation / 1000000).toFixed(1)}M`}
+              </div>
               <div className="text-sm text-gray-600">Total Valuation</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-pink-600">89%</div>
+              <div className="text-2xl font-bold text-pink-600">
+                {statsLoading ? '...' : `${stats.validationRate}%`}
+              </div>
               <div className="text-sm text-gray-600">Validation Rate</div>
             </div>
           </div>

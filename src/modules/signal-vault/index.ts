@@ -9,10 +9,6 @@ export { default as IdeaCard } from './components/IdeaCard';
 export { default as IdeaDetailModal } from './components/IdeaDetailModal';
 export { default as ROISimulator } from './components/ROISimulator';
 export { default as SubmitIdeaForm } from './components/SubmitIdeaForm';
-export { default as AIConfigModal } from './components/AIConfigModal';
-
-// Contexts
-export { AIProvider, useAI } from './contexts/AIContext';
 
 // Services
 export { AIService } from './services/aiService';
