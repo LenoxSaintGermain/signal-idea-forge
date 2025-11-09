@@ -6,23 +6,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calculator, TrendingUp, DollarSign } from "lucide-react";
+import { useIdeas } from "@/hooks/useIdeas";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserPortfolio } from "@/hooks/useUserPortfolio";
 
 const ROISimulator = () => {
+  const { user } = useAuth();
+  const { portfolio } = useUserPortfolio(user?.id);
+  const { ideas } = useIdeas();
   const [selectedIdea, setSelectedIdea] = useState("");
   const [investmentAmount, setInvestmentAmount] = useState("");
   const [exitValuation, setExitValuation] = useState("");
   const [timeHorizon, setTimeHorizon] = useState("3");
 
-  const mockIdeas = [
-    { id: "idea-001", title: "AI Agent for HOA Disputes", currentValuation: 1200000, userEquity: 0.09 },
-    { id: "idea-002", title: "Micro-Dosing App for Productivity", currentValuation: 850000, userEquity: 0.05 },
-    { id: "idea-003", title: "Climate Credit Marketplace", currentValuation: 2100000, userEquity: 0.12 }
-  ];
+  // Combine ideas from portfolio and general ideas
+  const availableIdeas = ideas.map(idea => {
+    const portfolioItem = portfolio.find(p => p.idea_id === idea.id);
+    return {
+      id: idea.id,
+      title: idea.title,
+      currentValuation: idea.valuationEstimate,
+      userEquity: portfolioItem?.equity_percentage || 0
+    };
+  });
 
   const calculateROI = () => {
     if (!selectedIdea || !investmentAmount || !exitValuation) return null;
     
-    const idea = mockIdeas.find(i => i.id === selectedIdea);
+    const idea = availableIdeas.find(i => i.id === selectedIdea);
     if (!idea) return null;
 
     const investment = parseFloat(investmentAmount);
@@ -80,7 +91,7 @@ const ROISimulator = () => {
                     <SelectValue placeholder="Choose an idea to simulate" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockIdeas.map((idea) => (
+                    {availableIdeas.map((idea) => (
                       <SelectItem key={idea.id} value={idea.id}>
                         {idea.title}
                       </SelectItem>
@@ -92,10 +103,10 @@ const ROISimulator = () => {
               {selectedIdea && (
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <div className="text-sm text-blue-800">
-                    Current Valuation: {formatCurrency(mockIdeas.find(i => i.id === selectedIdea)?.currentValuation || 0)}
+                    Current Valuation: {formatCurrency(availableIdeas.find(i => i.id === selectedIdea)?.currentValuation || 0)}
                   </div>
                   <div className="text-sm text-blue-600">
-                    Your Equity: {((mockIdeas.find(i => i.id === selectedIdea)?.userEquity || 0) * 100).toFixed(2)}%
+                    Your Equity: {((availableIdeas.find(i => i.id === selectedIdea)?.userEquity || 0) * 100).toFixed(2)}%
                   </div>
                 </div>
               )}

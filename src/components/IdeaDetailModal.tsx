@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUp, ArrowDown, MessageCircle, Share2, Heart, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useComments } from "@/hooks/useComments";
+import type { Idea } from "@/modules/signal-vault/types";
 
 interface IdeaDetailModalProps {
-  idea: any;
+  idea: Idea | null;
   isOpen: boolean;
   onClose: () => void;
   onVote: (ideaId: string, voteType: 'up' | 'down') => void;
@@ -17,12 +19,19 @@ interface IdeaDetailModalProps {
 
 const IdeaDetailModal = ({ idea, isOpen, onClose, onVote, hasVoted }: IdeaDetailModalProps) => {
   const { toast } = useToast();
-  const [comment, setComment] = useState("");
-  const [comments] = useState([
-    { id: 1, author: "Sarah Chen", content: "Love the AI automation angle. Have you considered B2B SaaS pricing?", time: "2h ago", votes: 5 },
-    { id: 2, author: "Mike Rodriguez", content: "The HOA market is huge but fragmented. Curious about customer acquisition strategy.", time: "4h ago", votes: 3 },
-    { id: 3, author: "Jennifer Liu", content: "Similar to LegalZoom but more niche. Could see 10x potential if executed well.", time: "1d ago", votes: 8 }
-  ]);
+  const [commentText, setCommentText] = useState("");
+  const { comments, addComment } = useComments(idea?.id || null);
+
+  const handleComment = async () => {
+    if (!commentText.trim() || !idea) return;
+    
+    try {
+      await addComment(commentText, "You");
+      setCommentText("");
+    } catch (error) {
+      console.error('Comment error:', error);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -31,17 +40,6 @@ const IdeaDetailModal = ({ idea, isOpen, onClose, onVote, hasVoted }: IdeaDetail
       notation: 'compact',
       maximumFractionDigits: 1
     }).format(value);
-  };
-
-  const handleComment = () => {
-    if (!comment.trim()) return;
-    
-    toast({
-      title: "Comment added!",
-      description: "+2 Signal Points earned",
-    });
-    
-    setComment("");
   };
 
   if (!idea) return null;
@@ -82,40 +80,36 @@ const IdeaDetailModal = ({ idea, isOpen, onClose, onVote, hasVoted }: IdeaDetail
             </div>
 
             {/* Problem */}
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Problem</h3>
-              <p className="text-gray-700 leading-relaxed">
-                HOA disputes are bureaucratic nightmares that waste time and money for homeowners. 
-                Current solutions require expensive lawyers or lengthy mediation processes that often escalate conflicts rather than resolve them.
-              </p>
-            </div>
+            {idea.problem && (
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Problem</h3>
+                <p className="text-gray-700 leading-relaxed">{idea.problem}</p>
+              </div>
+            )}
 
             {/* Solution */}
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Solution</h3>
-              <p className="text-gray-700 leading-relaxed">
-                An AI-powered agent that understands HOA bylaws, local regulations, and conflict resolution best practices. 
-                It can draft letters, suggest compromises, and automate the bureaucratic process while maintaining a neutral tone.
-              </p>
-            </div>
+            {idea.solution && (
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Solution</h3>
+                <p className="text-gray-700 leading-relaxed">{idea.solution}</p>
+              </div>
+            )}
 
             {/* Market Opportunity */}
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Market Opportunity</h3>
-              <p className="text-gray-700 leading-relaxed">
-                73% of Americans live in HOA communities (370,000+ associations). Average dispute costs $3,000+ in legal fees. 
-                TAM: $2.1B annually in HOA-related legal costs.
-              </p>
-            </div>
+            {idea.marketOpportunity && (
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Market Opportunity</h3>
+                <p className="text-gray-700 leading-relaxed">{idea.marketOpportunity}</p>
+              </div>
+            )}
 
             {/* Business Model */}
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Business Model</h3>
-              <p className="text-gray-700 leading-relaxed">
-                SaaS subscription: $29/month for basic AI mediation, $99/month for premium with human backup support. 
-                Revenue share with property management companies.
-              </p>
-            </div>
+            {idea.businessModel && (
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Business Model</h3>
+                <p className="text-gray-700 leading-relaxed">{idea.businessModel}</p>
+              </div>
+            )}
 
             {/* Comments Section */}
             <div>
@@ -125,11 +119,11 @@ const IdeaDetailModal = ({ idea, isOpen, onClose, onVote, hasVoted }: IdeaDetail
               <div className="mb-6">
                 <Textarea
                   placeholder="Share your thoughts, suggestions, or feedback..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
                   className="mb-2"
                 />
-                <Button onClick={handleComment} disabled={!comment.trim()}>
+                <Button onClick={handleComment} disabled={!commentText.trim()}>
                   Add Comment (+2 Points)
                 </Button>
               </div>
@@ -139,19 +133,12 @@ const IdeaDetailModal = ({ idea, isOpen, onClose, onVote, hasVoted }: IdeaDetail
                 {comments.map((comment) => (
                   <div key={comment.id} className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex justify-between items-start mb-2">
-                      <div className="font-medium text-sm">{comment.author}</div>
-                      <div className="text-xs text-gray-500">{comment.time}</div>
+                      <div className="font-medium text-sm">{comment.user_name}</div>
+                      <div className="text-xs text-gray-500">
+                        {new Date(comment.created_at).toLocaleDateString()}
+                      </div>
                     </div>
                     <p className="text-sm text-gray-700 mb-2">{comment.content}</p>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" className="text-xs">
-                        <ArrowUp className="h-3 w-3 mr-1" />
-                        {comment.votes}
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-xs">
-                        Reply
-                      </Button>
-                    </div>
                   </div>
                 ))}
               </div>

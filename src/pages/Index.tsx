@@ -1,6 +1,9 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useIdeas } from "@/hooks/useIdeas";
+import { useSignals } from "@/hooks/useSignals";
+import { useUserProfile } from "@/hooks/useUserProfile";
 // Using modularized Signal Vault components
 import {
   Navigation,
@@ -10,57 +13,23 @@ import {
   IdeaDetailModal,
   SubmitIdeaForm,
   FilterBar,
-  type Idea
 } from "@/modules/signal-vault";
 
 const Index = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [activeView, setActiveView] = useState("explore");
-  const [userPoints, setUserPoints] = useState(412);
-  const [votedIdeas, setVotedIdeas] = useState(new Set());
   const [selectedIdea, setSelectedIdea] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState("popular");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const mockIdeas: Idea[] = [
-    {
-      id: "idea-001",
-      title: "AI Agent for HOA Disputes",
-      summary: "Autonomous AI lawyer that mediates petty neighborhood conflicts and automates bureaucratic processes",
-      tags: ["LegalTech", "AI", "SaaS"],
-      valuationEstimate: 1200000,
-      voteCount: 102,
-      commentCount: 18,
-      userEquity: 0.09,
-      status: "hot"
-    },
-    {
-      id: "idea-002", 
-      title: "Micro-Dosing App for Productivity",
-      summary: "Precision wellness platform for optimizing cognitive performance through tracked micro-interventions",
-      tags: ["HealthTech", "Productivity", "B2C"],
-      valuationEstimate: 850000,
-      voteCount: 87,
-      commentCount: 23,
-      userEquity: 0.05,
-      status: "trending"
-    },
-    {
-      id: "idea-003",
-      title: "Climate Credit Marketplace",
-      summary: "P2P platform for trading verified carbon offsets with blockchain verification and impact tracking",
-      tags: ["ClimaTech", "Blockchain", "ESG"],
-      valuationEstimate: 2100000,
-      voteCount: 156,
-      commentCount: 31,
-      userEquity: 0.12,
-      status: "rising"
-    }
-  ];
+  const { ideas, loading: ideasLoading } = useIdeas(sortBy, categoryFilter, statusFilter);
+  const { votedIdeas, createSignal } = useSignals(user?.id);
+  const { profile } = useUserProfile(user?.id);
 
-  const handleVote = (ideaId: string, voteType: 'up' | 'down') => {
+  const handleVote = async (ideaId: string, voteType: 'up' | 'down') => {
     if (votedIdeas.has(ideaId)) {
       toast({
         title: "Already voted",
@@ -70,15 +39,15 @@ const Index = () => {
       return;
     }
 
-    setVotedIdeas(prev => new Set([...prev, ideaId]));
-    setUserPoints(prev => prev + 1);
-    
-    toast({
-      title: "Vote recorded!",
-      description: `+1 Signal Point earned`,
-    });
-    
-    console.log(`Voted ${voteType} on idea ${ideaId}`);
+    try {
+      await createSignal(ideaId, 'vote', 1);
+      toast({
+        title: "Vote recorded!",
+        description: "+1 Signal Point earned",
+      });
+    } catch (error) {
+      console.error('Vote error:', error);
+    }
   };
 
   const handleIdeaClick = (idea: any) => {
@@ -86,19 +55,14 @@ const Index = () => {
     setIsDetailModalOpen(true);
   };
 
-  // Filter and sort ideas based on current filters
-  const filteredIdeas = mockIdeas.filter(idea => {
-    if (statusFilter !== "all" && idea.status !== statusFilter) return false;
-    // Add more filtering logic based on categoryFilter
-    return true;
-  });
+  const filteredIdeas = ideas;
 
   // Render different views
   if (activeView === "dashboard") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-        <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={userPoints} />
-        <Dashboard userPoints={userPoints} ideas={mockIdeas} />
+        <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={profile?.signal_points || 0} />
+        <Dashboard userPoints={profile?.signal_points || 0} ideas={ideas} />
       </div>
     );
   }
@@ -106,7 +70,7 @@ const Index = () => {
   if (activeView === "simulator") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-        <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={userPoints} />
+        <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={profile?.signal_points || 0} />
         <ROISimulator />
       </div>
     );
@@ -120,7 +84,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={userPoints} />
+      <Navigation activeView={activeView} setActiveView={setActiveView} userPoints={profile?.signal_points || 0} />
 
       {/* Hero Section */}
       <section className="py-20 px-4 text-center">

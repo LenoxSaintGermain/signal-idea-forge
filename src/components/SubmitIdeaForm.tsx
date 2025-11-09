@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Lightbulb, ArrowLeft, ArrowRight, Sparkles, Save, Bot, Loader2, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAI } from "@/contexts/AIContext";
+import { supabase } from "@/integrations/supabase/client";
 import AIConfigModal from "./AIConfigModal";
 
 interface SubmitIdeaFormProps {
@@ -217,26 +218,52 @@ const SubmitIdeaForm = ({ onBack }: SubmitIdeaFormProps) => {
   };
 
   const handleSubmit = async () => {
-    if (isConfigured && formData.title && formData.summary) {
-      try {
-        const valuation = await generateValuation(formData);
-        toast({
-          title: "Idea submitted!",
-          description: `+15 Signal Points earned! AI estimated valuation: $${valuation.toLocaleString()}`,
-        });
-      } catch (error) {
-        toast({
-          title: "Idea submitted!",
-          description: "+15 Signal Points earned for submitting an idea",
-        });
+    if (!formData.title || !formData.summary) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide at least a title and summary",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-idea', {
+        body: {
+          title: formData.title,
+          summary: formData.summary,
+          problem: formData.problem,
+          solution: formData.solution,
+          market_opportunity: formData.market,
+          business_model: formData.businessModel,
+          tags: formData.tags,
+        }
+      });
+
+      if (error) throw error;
+
+      let valuation = 100000;
+      if (isConfigured && formData.title && formData.summary) {
+        try {
+          valuation = await generateValuation(formData);
+        } catch (err) {
+          console.error('Valuation generation failed:', err);
+        }
       }
-    } else {
+
       toast({
         title: "Idea submitted!",
-        description: "+15 Signal Points earned for submitting an idea",
+        description: `+15 Signal Points earned! Estimated valuation: $${valuation.toLocaleString()}`,
+      });
+      onBack();
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast({
+        title: "Submission failed",
+        description: "Please try again",
+        variant: "destructive"
       });
     }
-    onBack();
   };
 
   return (
